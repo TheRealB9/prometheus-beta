@@ -46,6 +46,7 @@ def lz4_compress(data):
             
             # Check how long the match continues
             while (i + match_length < len(data) and 
+                   j + match_length < i and
                    data[j + match_length] == data[i + match_length] and 
                    match_length < 255):  # Limit match length
                 match_length += 1
@@ -57,10 +58,18 @@ def lz4_compress(data):
         
         # Encode the match or literal
         if best_length >= 4:  # Minimum match length
-            # Encode match: offset (2 bytes) and length
-            compressed.append(best_length)
-            # Little-endian 2-byte offset
+            # Token: first 4 bits are match length, last 4 are literal length
+            token = min(best_length, 15)
+            compressed.append(token)
+            
+            # Add additional match length if needed
+            if best_length >= 15:
+                extra_length = best_length - 15
+                compressed.append(extra_length)
+            
+            # Add offset as 2 bytes (little-endian)
             compressed.extend(best_offset.to_bytes(2, byteorder='little'))
+            
             i += best_length
         else:
             # Encode literal byte
@@ -95,28 +104,51 @@ def lz4_decompress(compressed_data):
     i = 0
     
     while i < len(compressed_data):
-        # Check if it's a match or a literal
-        if compressed_data[i] < 4:  # Literal byte
-            decompressed.append(compressed_data[i])
-            i += 1
-        else:
-            # Decode match
-            match_length = compressed_data[i]
-            
-            # Extract 2-byte offset (little-endian)
-            if i + 2 >= len(compressed_data):
-                raise ValueError("Invalid compressed data")
-            
-            offset = int.from_bytes(compressed_data[i+1:i+3], byteorder='little')
-            
-            # Reproduce the matched sequence
-            start = len(decompressed) - offset
-            for _ in range(match_length):
-                if start < 0:
-                    raise ValueError("Invalid offset in compressed data")
-                decompressed.append(decompressed[start])
-                start += 1
-            
-            i += 3  # Move past length and offset bytes
+        # Get the token (first byte)
+        token = compressed_data[i]
+        i += 1
+        
+        # Extract match and literal lengths
+        match_length = token >> 4  # First 4 bits
+        literal_length = token & 0x0F  # Last 4 bits
+        
+        # Add extra literal length bytes if needed
+        if literal_length == 15:
+            while True:
+                extra = compressed_data[i]
+                i += 1
+                literal_length += extra
+                if extra != 255:
+                    break
+        
+        # Copy literals
+        if literal_length > 0:
+            decompressed.extend(compressed_data[i:i+literal_length])
+            i += literal_length
+        
+        # If at end of data, stop
+        if i >= len(compressed_data):
+            break
+        
+        # Extract offset
+        offset = int.from_bytes(compressed_data[i:i+2], byteorder='little')
+        i += 2
+        
+        # Get match length
+        base_match_length = token >> 4
+        match_length = base_match_length
+        if base_match_length == 15:
+            while True:
+                extra = compressed_data[i]
+                i += 1
+                match_length += extra
+                if extra != 255:
+                    break
+        
+        # Reproduce the matched sequence
+        start = len(decompressed) - offset
+        for _ in range(match_length):
+            decompressed.append(decompressed[start])
+            start += 1
     
     return bytes(decompressed)
