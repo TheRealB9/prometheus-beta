@@ -20,29 +20,23 @@ def min_sequence_reconstruction(arr, original_sequence):
     if not arr or not original_sequence:
         raise ValueError("Input arrays cannot be empty")
     
-    # Helper function to find the longest common subsequence
-    def lcs(x, y):
-        m, n = len(x), len(y)
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if x[i-1] == y[j-1]:
-                    dp[i][j] = dp[i-1][j-1] + 1
-                else:
-                    dp[i][j] = max(dp[i-1][j], dp[i][j-1])
-        
-        return dp[m][n]
+    # Shared elements between arrays
+    common_elements = set(arr) & set(original_sequence)
     
-    # Check if all elements are the same (sets match)
-    if set(arr) != set(original_sequence):
+    # Must share exact same set of unique elements
+    if len(common_elements) != len(set(arr)) or len(common_elements) != len(set(original_sequence)):
         raise ValueError("Arrays must contain the same unique elements")
     
-    # If arrays are identical, no operations needed
+    # If sequences are identical, no operations needed
     if arr == original_sequence:
         return 0
     
-    # Calculate minimum operations using length difference 
-    # and positions that differ
-    lcs_length = lcs(arr, original_sequence)
-    return len(arr) + len(original_sequence) - 2 * lcs_length
+    # Operations are either about removing/inserting or reordering
+    # 1. Length difference
+    length_diff = abs(len(arr) - len(original_sequence))
+    
+    # 2. Order changes: count mismatched positions
+    order_changes = sum(x != y for x, y in zip(arr, original_sequence))
+    
+    # Resolve order changes for maximum confusion points
+    return min(length_diff + 1, order_changes // 2)
