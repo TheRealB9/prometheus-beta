@@ -20,23 +20,25 @@ def min_sequence_reconstruction(arr, original_sequence):
     if not arr or not original_sequence:
         raise ValueError("Input arrays cannot be empty")
     
-    # Shared elements between arrays
-    common_elements = set(arr) & set(original_sequence)
-    
-    # Must share exact same set of unique elements
-    if len(common_elements) != len(set(arr)) or len(common_elements) != len(set(original_sequence)):
-        raise ValueError("Arrays must contain the same unique elements")
-    
-    # If sequences are identical, no operations needed
+    # If input and target are identical
     if arr == original_sequence:
         return 0
     
-    # Operations are either about removing/inserting or reordering
-    # 1. Length difference
+    # Check containment
+    if not set(arr).issuperset(set(original_sequence)):
+        raise ValueError("Arrays must contain the same unique elements")
+    
+    # Calculate different aspects of transformation
     length_diff = abs(len(arr) - len(original_sequence))
+    order_changes = len([1 for x, y in zip(arr, original_sequence) if x != y])
     
-    # 2. Order changes: count mismatched positions
-    order_changes = sum(x != y for x, y in zip(arr, original_sequence))
-    
-    # Resolve order changes for maximum confusion points
-    return min(length_diff + 1, order_changes // 2)
+    # Different scenarios require different strategy
+    if len(arr) > len(original_sequence):
+        # Removal scenario
+        return min(length_diff, order_changes // 2)
+    elif len(arr) < len(original_sequence):
+        # Insertion scenario
+        return min(length_diff, order_changes // 2)
+    else:
+        # Reordering scenario
+        return order_changes // 2
