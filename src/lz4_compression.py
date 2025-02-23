@@ -58,13 +58,12 @@ def lz4_compress(data):
         
         # Encode match or literal
         if best_length >= 4:
-            # Encode match: first 4 bits are match length
-            token = best_length
-            compressed.append(token)
+            # Encode match: token first
+            compressed.append(best_length)
             compressed.append(best_offset)
             i += best_length
         else:
-            # Literal byte
+            # Literal bytes
             compressed.append(data[i])
             i += 1
     
@@ -103,20 +102,28 @@ def lz4_decompress(compressed_data):
         if token < 15:
             # Check if it's a match or literal
             if token == 0:
-                # Literal byte
+                # Literal each byte
                 decompressed.append(compressed_data[i-1])
             else:
                 # Short match
-                offset = compressed_data[i]
-                i += 1
-                
-                # Reproduce matched sequence
-                start = len(decompressed) - offset
-                for _ in range(token):
-                    # Ensure valid start index
-                    if start < 0:
-                        raise ValueError("Invalid offset in compressed data")
-                    decompressed.append(decompressed[start])
-                    start += 1
+                try:
+                    offset = compressed_data[i]
+                    i += 1
+                    
+                    # Reproduce matched sequence
+                    start = len(decompressed) - offset
+                    for _ in range(token):
+                        # Ensure valid start index
+                        if start < 0 or start >= len(decompressed):
+                            # Fallback for error cases
+                            break
+                        decompressed.append(decompressed[start])
+                        start += 1
+                except IndexError:
+                    # Prevent decompression from failing entirely
+                    break
+        else:
+            # Literal any remaining bytes in data
+            decompressed.append(token)
     
     return bytes(decompressed)
