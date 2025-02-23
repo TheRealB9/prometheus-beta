@@ -1,16 +1,16 @@
 """
-LZ4 Compression Algorithm Implementation
+Simple LZ4-inspired Compression Algorithm
 
-This module provides a basic implementation of the LZ4 compression algorithm.
-Note: This is a simplified version and not a full production-ready implementation.
+This is a basic implementation of a compression technique 
+inspired by LZ4's principles of simple, fast compression.
 """
 
 def lz4_compress(data):
     """
-    Compress input data using a simplified LZ4 compression algorithm.
+    Compress input data using a simplified compression method.
     
     Args:
-        data (bytes or str): Input data to be compressed
+        data (bytes or str): Input data to compress
     
     Returns:
         bytes: Compressed data
@@ -30,7 +30,7 @@ def lz4_compress(data):
     if not isinstance(data, bytes):
         raise TypeError("Input must be bytes or str")
     
-    # Simplified compression 
+    # Simplified compression
     compressed = bytearray()
     i = 0
     
@@ -39,16 +39,16 @@ def lz4_compress(data):
         best_length = 0
         best_offset = 0
         
-        # Search back for best match
-        search_start = max(0, i - 65535)  # 16-bit offset
+        # Search back for longest match
+        search_start = max(0, i - 255)  # Limit search window
         for j in range(search_start, i):
             match_length = 0
             
-            # Verify match continuation 
+            # Extend match as long as possible
             while (i + match_length < len(data) and 
-                   j + match_length < i and
+                   j + match_length < i and 
                    data[j + match_length] == data[i + match_length] and 
-                   match_length < 255):
+                   match_length < 15):  # Limit match length
                 match_length += 1
             
             # Update best match
@@ -56,29 +56,13 @@ def lz4_compress(data):
                 best_length = match_length
                 best_offset = i - j
         
-        # Encode the match or literal
+        # Encode match or literal
         if best_length >= 4:
-            # Token: first literal (0), then match
-            # Check if token is single byte
-            if best_offset <= 255 and best_length <= 15:
-                # Short form: token packed with lengths
-                token = best_length 
-                compressed.append(token)
-                compressed.append(best_offset)
-                i += best_length
-            else:
-                # Longer form 
-                token = 15  # Maximum single-byte length 
-                compressed.append(token)
-                
-                # Extra match length
-                extra_match = best_length - 15
-                compressed.append(extra_match)
-                
-                # 2-byte offset
-                compressed.extend(best_offset.to_bytes(2, byteorder='little'))
-                
-                i += best_length
+            # Encode match: first 4 bits are match length
+            token = best_length
+            compressed.append(token)
+            compressed.append(best_offset)
+            i += best_length
         else:
             # Literal byte
             compressed.append(data[i])
@@ -88,7 +72,7 @@ def lz4_compress(data):
 
 def lz4_decompress(compressed_data):
     """
-    Decompress LZ4-compressed data.
+    Decompress data compressed with our method.
     
     Args:
         compressed_data (bytes): Compressed input data
@@ -112,48 +96,27 @@ def lz4_decompress(compressed_data):
     i = 0
     
     while i < len(compressed_data):
-        # Get the token/length
+        # Get the token
         token = compressed_data[i]
         i += 1
         
         if token < 15:
-            # Literal or short match
-            if token < 15:
-                # Add single byte literal or do match
-                if token == 0:
-                    # Literal
-                    decompressed.append(compressed_data[i-1])
-                else:
-                    # Short match
-                    offset = compressed_data[i]
-                    i += 1
-                    
-                    # Reproduce the matched sequence
-                    start = len(decompressed) - offset
-                    for _ in range(token):
-                        decompressed.append(decompressed[start])
-                        start += 1
-        else:
-            # Long form
-            match_length = token
-            
-            # Check for extra match length
-            if match_length == 15:
-                while True:
-                    extra = compressed_data[i]
-                    i += 1
-                    match_length += extra
-                    if extra != 255:
-                        break
-            
-            # Extract 2-byte offset
-            offset = int.from_bytes(compressed_data[i:i+2], byteorder='little')
-            i += 2
-            
-            # Reproduce the matched sequence
-            start = len(decompressed) - offset
-            for _ in range(match_length):
-                decompressed.append(decompressed[start])
-                start += 1
+            # Check if it's a match or literal
+            if token == 0:
+                # Literal byte
+                decompressed.append(compressed_data[i-1])
+            else:
+                # Short match
+                offset = compressed_data[i]
+                i += 1
+                
+                # Reproduce matched sequence
+                start = len(decompressed) - offset
+                for _ in range(token):
+                    # Ensure valid start index
+                    if start < 0:
+                        raise ValueError("Invalid offset in compressed data")
+                    decompressed.append(decompressed[start])
+                    start += 1
     
     return bytes(decompressed)
