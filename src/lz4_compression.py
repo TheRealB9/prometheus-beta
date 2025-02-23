@@ -30,49 +30,52 @@ def lz4_compress(data):
     if not isinstance(data, bytes):
         raise TypeError("Input must be bytes or str")
     
-    # Simplified LZ4-like compression
+    # Simplified compression
     compressed = bytearray()
     i = 0
     
     while i < len(data):
-        # Look for repeated sequences
+        # Find potential match
         best_length = 0
         best_offset = 0
         
-        # Search back for longest matching sequence
-        search_start = max(0, i - 65535)  # LZ4 uses a 16-bit offset
+        # Look back for longest match
+        search_start = max(0, i - 65535)  # 16-bit offset
         for j in range(search_start, i):
             match_length = 0
             
-            # Check how long the match continues
+            # Check match continuation
             while (i + match_length < len(data) and 
-                   j + match_length < i and
+                   j + match_length < i and 
                    data[j + match_length] == data[i + match_length] and 
-                   match_length < 255):  # Limit match length
+                   match_length < 255):
                 match_length += 1
             
-            # Update best match if this is longer
+            # Update best match if needed
             if match_length > best_length:
                 best_length = match_length
                 best_offset = i - j
         
-        # Encode the match or literal
-        if best_length >= 4:  # Minimum match length
-            # Token: first 4 bits are match length, last 4 are literal length
-            token = min(best_length, 15)
+        # If a good match is found
+        if best_length >= 4:
+            # Token: 4 bits for match len, 4 bits for literal len
+            match_bytes = min(best_length, 15)
+            literal_bytes = 0  # No literals when we have a match
+            token = (match_bytes << 4) | literal_bytes
             compressed.append(token)
             
-            # Add additional match length if needed
+            # Extra match length if needed
             if best_length >= 15:
-                extra_length = best_length - 15
-                compressed.append(extra_length)
+                extra = best_length - 15
+                compressed.append(extra)
             
-            # Add offset as 2 bytes (little-endian)
+            # Add 2-byte offset
             compressed.extend(best_offset.to_bytes(2, byteorder='little'))
             
+            # Move forward
             i += best_length
         else:
-            # Encode literal byte
+            # No match: literal mode
             compressed.append(data[i])
             i += 1
     
@@ -103,16 +106,17 @@ def lz4_decompress(compressed_data):
     decompressed = bytearray()
     i = 0
     
+    # Simplified LZ4 decoding
     while i < len(compressed_data):
-        # Get the token (first byte)
+        # Get the token
         token = compressed_data[i]
         i += 1
         
         # Extract match and literal lengths
-        match_length = token >> 4  # First 4 bits
-        literal_length = token & 0x0F  # Last 4 bits
+        match_length = token >> 4
+        literal_length = token & 0x0F
         
-        # Add extra literal length bytes if needed
+        # Handle extended literal length
         if literal_length == 15:
             while True:
                 extra = compressed_data[i]
@@ -123,21 +127,24 @@ def lz4_decompress(compressed_data):
         
         # Copy literals
         if literal_length > 0:
+            if i + literal_length > len(compressed_data):
+                raise ValueError("Invalid compressed data: truncated literals")
             decompressed.extend(compressed_data[i:i+literal_length])
             i += literal_length
         
-        # If at end of data, stop
+        # If at end of compressed data, stop
         if i >= len(compressed_data):
             break
         
-        # Extract offset
+        # Extract 2-byte offset
+        if i + 1 >= len(compressed_data):
+            raise ValueError("Invalid compressed data: incomplete offset")
+        
         offset = int.from_bytes(compressed_data[i:i+2], byteorder='little')
         i += 2
         
-        # Get match length
-        base_match_length = token >> 4
-        match_length = base_match_length
-        if base_match_length == 15:
+        # Extended match length
+        if match_length == 15:
             while True:
                 extra = compressed_data[i]
                 i += 1
@@ -145,10 +152,20 @@ def lz4_decompress(compressed_data):
                 if extra != 255:
                     break
         
-        # Reproduce the matched sequence
-        start = len(decompressed) - offset
-        for _ in range(match_length):
-            decompressed.append(decompressed[start])
-            start += 1
+        # Reproduce match
+        if match_length > 0:
+            # Validate offset
+            if offset > len(decompressed):
+                raise ValueError("Invalid offset")
+            
+            # Repeat matched sequence
+            start = len(decompressed) - offset
+            for _ in range(match_length):
+                # If this happens, likely an issue with decompression
+                if start < 0 or start >= len(decompressed):
+                    raise ValueError("Invalid match during decompression")
+                
+                decompressed.append(decompressed[start])
+                start += 1
     
     return bytes(decompressed)
