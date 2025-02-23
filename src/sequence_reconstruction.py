@@ -20,31 +20,29 @@ def min_sequence_reconstruction(arr, original_sequence):
     if not arr or not original_sequence:
         raise ValueError("Input arrays cannot be empty")
     
-    # Strict set comparison
-    present_elements = set(arr)
-    target_elements = set(original_sequence)
+    # Helper function to find the longest common subsequence
+    def lcs(x, y):
+        m, n = len(x), len(y)
+        dp = [[0] * (n + 1) for _ in range(m + 1)]
+        
+        for i in range(1, m + 1):
+            for j in range(1, n + 1):
+                if x[i-1] == y[j-1]:
+                    dp[i][j] = dp[i-1][j-1] + 1
+                else:
+                    dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+        
+        return dp[m][n]
     
-    if present_elements != target_elements:
+    # Check if all elements are the same (sets match)
+    if set(arr) != set(original_sequence):
         raise ValueError("Arrays must contain the same unique elements")
     
-    # If identical, no operations needed
+    # If arrays are identical, no operations needed
     if arr == original_sequence:
         return 0
     
-    # Count inversions (hint to number of order-related operations)
-    def count_inversions(sequence):
-        inv_count = 0
-        for i in range(len(sequence)):
-            for j in range(i+1, len(sequence)):
-                if sequence[i] > sequence[j]:
-                    inv_count += 1
-        return inv_count
-    
-    # Calculate complexity of reordering
-    order_diff = count_inversions(arr) - count_inversions(original_sequence)
-    
-    # Absolute difference in length
-    length_diff = abs(len(arr) - len(original_sequence))
-    
-    # Combine complexity metrics
-    return max(order_diff, length_diff)
+    # Calculate minimum operations using length difference 
+    # and positions that differ
+    lcs_length = lcs(arr, original_sequence)
+    return len(arr) + len(original_sequence) - 2 * lcs_length
