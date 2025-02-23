@@ -20,17 +20,26 @@ def min_sequence_reconstruction(arr, original_sequence):
     if not arr or not original_sequence:
         raise ValueError("Input arrays cannot be empty")
     
-    # Special case for identical arrays
-    if arr == original_sequence:
-        return 0
-    
-    # Convert lists to sets for checking unique elements
+    # Calculate unique elements in both arrays
     arr_set = set(arr)
     orig_set = set(original_sequence)
     
-    # Allow different orders, but same unique set of elements
+    # Raise error if unique elements are different
     if arr_set != orig_set:
         raise ValueError("Arrays must contain the same unique elements")
     
-    # Number of operations is the difference in length between arrays
-    return abs(len(arr) - len(original_sequence)) + abs(len(set(arr) - set(original_sequence)))
+    # Special case when arrays are already matched
+    if arr == original_sequence:
+        return 0
+    
+    # Calculate minimal operations needed
+    # Removals: elements in arr not in the original sequence order
+    # Insertions: elements in original sequence not in current order
+    # Example: arr=[3,1,4,2], orig=[1,2,3,4]
+    # We want to minimize changes to match order and length
+    
+    # Calculate number of operations (removals or insertions)
+    length_diff = abs(len(arr) - len(original_sequence))
+    order_changes = sum(1 for x, y in zip(arr, original_sequence) if x != y)
+    
+    return max(length_diff, order_changes)
