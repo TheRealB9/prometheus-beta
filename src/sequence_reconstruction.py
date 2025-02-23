@@ -20,26 +20,21 @@ def min_sequence_reconstruction(arr, original_sequence):
     if not arr or not original_sequence:
         raise ValueError("Input arrays cannot be empty")
     
-    # Calculate unique elements in both arrays
-    arr_set = set(arr)
-    orig_set = set(original_sequence)
+    # If sequence contains all unique elements from input
+    present_elements = set(arr)
+    target_elements = set(original_sequence)
     
-    # Raise error if unique elements are different
-    if arr_set != orig_set:
-        raise ValueError("Arrays must contain the same unique elements")
+    # Compute insertions and deletions
+    insertions = len(target_elements - present_elements)
+    deletions = len(present_elements - target_elements)
     
-    # Special case when arrays are already matched
-    if arr == original_sequence:
-        return 0
+    # If all elements are shared, calculate order changes
+    if len(present_elements) == len(target_elements):
+        # Count mismatched positions
+        order_changes = sum(x != y for x, y in zip(arr, original_sequence)) // 2
+        
+        # Prefer minimum between order changes and length difference
+        return min(abs(len(arr) - len(original_sequence)) + insertions + deletions, 
+                   order_changes)
     
-    # Calculate minimal operations needed
-    # Removals: elements in arr not in the original sequence order
-    # Insertions: elements in original sequence not in current order
-    # Example: arr=[3,1,4,2], orig=[1,2,3,4]
-    # We want to minimize changes to match order and length
-    
-    # Calculate number of operations (removals or insertions)
-    length_diff = abs(len(arr) - len(original_sequence))
-    order_changes = sum(1 for x, y in zip(arr, original_sequence) if x != y)
-    
-    return max(length_diff, order_changes)
+    return insertions + deletions
