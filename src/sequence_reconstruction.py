@@ -20,21 +20,31 @@ def min_sequence_reconstruction(arr, original_sequence):
     if not arr or not original_sequence:
         raise ValueError("Input arrays cannot be empty")
     
-    # If sequence contains all unique elements from input
+    # Strict set comparison
     present_elements = set(arr)
     target_elements = set(original_sequence)
     
-    # Compute insertions and deletions
-    insertions = len(target_elements - present_elements)
-    deletions = len(present_elements - target_elements)
+    if present_elements != target_elements:
+        raise ValueError("Arrays must contain the same unique elements")
     
-    # If all elements are shared, calculate order changes
-    if len(present_elements) == len(target_elements):
-        # Count mismatched positions
-        order_changes = sum(x != y for x, y in zip(arr, original_sequence)) // 2
-        
-        # Prefer minimum between order changes and length difference
-        return min(abs(len(arr) - len(original_sequence)) + insertions + deletions, 
-                   order_changes)
+    # If identical, no operations needed
+    if arr == original_sequence:
+        return 0
     
-    return insertions + deletions
+    # Count inversions (hint to number of order-related operations)
+    def count_inversions(sequence):
+        inv_count = 0
+        for i in range(len(sequence)):
+            for j in range(i+1, len(sequence)):
+                if sequence[i] > sequence[j]:
+                    inv_count += 1
+        return inv_count
+    
+    # Calculate complexity of reordering
+    order_diff = count_inversions(arr) - count_inversions(original_sequence)
+    
+    # Absolute difference in length
+    length_diff = abs(len(arr) - len(original_sequence))
+    
+    # Combine complexity metrics
+    return max(order_diff, length_diff)
