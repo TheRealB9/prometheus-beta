@@ -24,21 +24,25 @@ def min_sequence_reconstruction(arr, original_sequence):
     if arr == original_sequence:
         return 0
     
-    # Check containment
-    if not set(arr).issuperset(set(original_sequence)):
+    # Check if both have same unique set of elements
+    if set(arr) != set(original_sequence):
         raise ValueError("Arrays must contain the same unique elements")
     
-    # Calculate different aspects of transformation
-    length_diff = abs(len(arr) - len(original_sequence))
-    order_changes = len([1 for x, y in zip(arr, original_sequence) if x != y])
+    # Count inversions to understand reordering complexity
+    def count_inversions(sequence, target):
+        inversions = 0
+        # Track indices of target sequence's elements in current sequence
+        indices = [sequence.index(x) for x in target]
+        
+        for i in range(len(indices)):
+            for j in range(i+1, len(indices)):
+                if indices[i] > indices[j]:
+                    inversions += 1
+        return inversions
     
-    # Different scenarios require different strategy
-    if len(arr) > len(original_sequence):
-        # Removal scenario
-        return min(length_diff, order_changes // 2)
-    elif len(arr) < len(original_sequence):
-        # Insertion scenario
-        return min(length_diff, order_changes // 2)
-    else:
-        # Reordering scenario
-        return order_changes // 2
+    # Compute complexity
+    order_changes = count_inversions(arr, original_sequence)
+    length_diff = abs(len(arr) - len(original_sequence))
+    
+    # Strategy: balance between reordering and length changes
+    return max(order_changes // 2, length_diff)
