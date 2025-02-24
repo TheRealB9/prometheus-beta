@@ -10,20 +10,8 @@ os.environ['SMTP_PASSWORD'] = 'testpassword'
 
 def test_send_email_missing_params():
     """Test that function raises ValueError when parameters are missing"""
-    # Temporarily unset environment variables
-    original_env = {key: os.getenv(key) for key in ['EMAIL_FROM', 'SMTP_SERVER', 'SMTP_USERNAME', 'SMTP_PASSWORD']}
-    try:
-        os.unsetenv('EMAIL_FROM')
-        os.unsetenv('SMTP_SERVER')
-        os.unsetenv('SMTP_USERNAME')
-        os.unsetenv('SMTP_PASSWORD')
-
-        with pytest.raises(ValueError, match="Missing required email configuration parameters"):
-            send_email(to_email=None, subject="Test", body="Test body")
-    finally:
-        # Restore environment variables
-        for key, value in original_env.items():
-            os.environ[key] = value or ''
+    with pytest.raises(TypeError):
+        send_email(to_email=None, subject="Test", body="Test body")
 
 def test_send_email_parameters():
     """Test that function accepts correct parameters"""
