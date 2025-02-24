@@ -52,3 +52,13 @@ def test_email_structure():
     with pytest.raises(TypeError):
         # Intentionally pass incorrect types to test type checking
         send_email(to_email=123, subject=None, body=object())  # type: ignore
+
+def test_empty_parameters():
+    """Test empty parameter handling"""
+    with pytest.raises(ValueError):
+        send_email(to_email='', subject='', body='Test Body')
+
+def test_non_string_parameters():
+    """Test non-string parameter handling"""
+    with pytest.raises(TypeError):
+        send_email(to_email=123, subject=456, body=object())
