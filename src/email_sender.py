@@ -32,7 +32,16 @@ def send_email(
     
     Raises:
         ValueError: If required email configuration is missing
+        TypeError: If input parameters are of incorrect type
     """
+    # Type checking
+    if not all(isinstance(param, str) for param in [to_email, subject, body]):
+        raise TypeError("to_email, subject, and body must be strings")
+    
+    # Additional parameter validations
+    if not to_email or not subject:
+        raise ValueError("to_email and subject cannot be empty")
+
     # Use environment variables as fallback
     from_email = from_email or os.getenv('EMAIL_FROM')
     smtp_server = smtp_server or os.getenv('SMTP_SERVER')
